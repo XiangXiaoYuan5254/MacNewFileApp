@@ -65,11 +65,11 @@ struct ContentView: View {
         let enabled = enableExtension()
         registerURLScheme()
         relaunchFinder()
-        openExtensionsSettings()
 
         if registered && enabled {
-            showAlert("已完成安装/修复。\n\n如果右键菜单还没有出现，请在刚打开的系统设置里启用“新建文件”，然后再重启访达。")
+            closeInstallerWindow()
         } else {
+            openExtensionsSettings()
             showAlert("已尝试安装/修复，但系统可能拦截了扩展启用。\n\n请在系统设置的扩展/访达扩展里手动启用“新建文件”。")
         }
     }
@@ -122,6 +122,13 @@ struct ContentView: View {
 
     private func relaunchFinder() {
         _ = run("/usr/bin/killall", arguments: ["Finder"])
+    }
+
+    private func closeInstallerWindow() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            NSApp.keyWindow?.orderOut(nil)
+            NSApp.hide(nil)
+        }
     }
 
     private func run(_ executablePath: String, arguments: [String]) -> Int32 {
