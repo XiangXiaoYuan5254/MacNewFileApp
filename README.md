@@ -22,9 +22,19 @@
 5. 如果系统设置打开了扩展页面，请启用 **新建文件**
 6. 在 Finder 文件夹空白处右键，选择 **新建文件**
 
-macOS 不允许第三方 App 完全静默启用 Finder 扩展，所以“系统设置里启用扩展”这一步可能需要用户手动点一次。
+macOS 不允许第三方 App 完全静默启用 Finder 扩展，所以“系统设置里启用扩展”这一步可能需要手动点一次。
 
-如果下载的是未签名版本，macOS 可能提示“无法验证开发者”。可以在 **系统设置 > 隐私与安全性** 里允许打开。正式发布时建议使用 Apple Developer ID 签名并公证。
+## 无法打开时
+
+当前 Release 未经过 Apple 公证。首次打开时，macOS 可能提示“无法验证开发者”。
+
+可以这样打开：
+
+1. 在 Finder 中右键点击 `NewFileApp.app`
+2. 选择 **打开**
+3. 在弹窗中再次选择 **打开**
+
+也可以在 **系统设置 > 隐私与安全性** 中允许打开。
 
 ## 开发打包
 
@@ -63,16 +73,13 @@ dist/NewFileApp-1.0.0-mac-<arch>.dmg
 
 把 `.dmg` 上传到 GitHub Releases，普通用户下载后按“用户安装”步骤操作即可。
 
-## 签名与公证
+## 签名
 
-当前脚本默认使用 ad-hoc 签名，适合本机测试。面向公开发布时，建议：
+打包脚本默认使用 ad-hoc 签名，适合开源分发和本地测试。也可以通过 `SIGN_IDENTITY` 指定证书：
 
-1. 注册 Apple Developer Program
-2. 使用 Developer ID Application 证书签名 app 和 Finder Sync 扩展
-3. 使用 `notarytool` 公证 `.dmg`
-4. 使用 `stapler` 把公证票据钉到 `.dmg`
-
-完成签名和公证后，安装体验会接近普通 macOS App：下载、拖入 Applications、打开、启用 Finder 扩展。
+```bash
+SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" VERSION=1.0.0 scripts/package_release.sh
+```
 
 ## 工作原理
 
