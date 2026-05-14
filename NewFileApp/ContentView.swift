@@ -67,6 +67,7 @@ struct ContentView: View {
         relaunchFinder()
 
         if registered && enabled {
+            showAlert("安装成功！\n\n现在可以在 Finder 文件夹空白处右键，选择“新建文件”。")
             closeInstallerWindow()
         } else {
             openExtensionsSettings()
