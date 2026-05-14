@@ -7,6 +7,7 @@ enum FileTemplate: String, CaseIterable {
     case csv
     case json
     case html
+    case css
     case word
     case pdf
     case powerpoint
@@ -24,6 +25,7 @@ enum FileTemplate: String, CaseIterable {
         case .csv: return "CSV 表格 (.csv)"
         case .json: return "JSON (.json)"
         case .html: return "HTML (.html)"
+        case .css: return "CSS (.css)"
         case .word: return "Word 文档 (.docx)"
         case .pdf: return "PDF 文档 (.pdf)"
         case .powerpoint: return "PowerPoint 演示文稿 (.pptx)"
@@ -43,6 +45,7 @@ enum FileTemplate: String, CaseIterable {
         case .csv: return "新建CSV"
         case .json: return "新建JSON"
         case .html: return "新建HTML"
+        case .css: return "新建CSS"
         case .word: return "新建Word文档"
         case .pdf: return "新建PDF"
         case .powerpoint: return "新建PowerPoint"
@@ -62,6 +65,7 @@ enum FileTemplate: String, CaseIterable {
         case .csv: return "csv"
         case .json: return "json"
         case .html: return "html"
+        case .css: return "css"
         case .word: return "docx"
         case .pdf: return "pdf"
         case .powerpoint: return "pptx"
@@ -99,6 +103,16 @@ enum FileTemplate: String, CaseIterable {
             <body>
             </body>
             </html>
+            """
+        case .css:
+            value = """
+            :root {
+              color-scheme: light dark;
+            }
+
+            body {
+              margin: 0;
+            }
             """
         case .word, .pdf, .powerpoint, .excel:
             value = ""

@@ -8,6 +8,7 @@ enum NewFileKind: String {
     case csv
     case json
     case html
+    case css
     case word
     case pdf
     case powerpoint
@@ -25,6 +26,7 @@ enum NewFileKind: String {
         case .csv: return "新建CSV"
         case .json: return "新建JSON"
         case .html: return "新建HTML"
+        case .css: return "新建CSS"
         case .word: return "新建Word文档"
         case .pdf: return "新建PDF"
         case .powerpoint: return "新建PowerPoint"
@@ -44,6 +46,7 @@ enum NewFileKind: String {
         case .csv: return "csv"
         case .json: return "json"
         case .html: return "html"
+        case .css: return "css"
         case .word: return "docx"
         case .pdf: return "pdf"
         case .powerpoint: return "pptx"
@@ -81,6 +84,16 @@ enum NewFileKind: String {
             <body>
             </body>
             </html>
+            """
+        case .css:
+            value = """
+            :root {
+              color-scheme: light dark;
+            }
+
+            body {
+              margin: 0;
+            }
             """
         case .word:
             return TemplateData.wordDocument

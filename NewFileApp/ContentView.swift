@@ -23,7 +23,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("可创建")
                     .font(.headline)
-                Text("txt、md、rtf、csv、json、html、docx、pdf、pptx、xlsx、js、py、swift、sh")
+                Text("txt、md、rtf、csv、json、html、css、docx、pdf、pptx、xlsx、js、py、swift、sh")
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
                     .foregroundStyle(.secondary)

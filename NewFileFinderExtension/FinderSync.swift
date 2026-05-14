@@ -28,14 +28,23 @@ final class FinderSync: FIFinderSync {
         let menu = NSMenu(title: "新建文件")
         let submenu = NSMenu(title: "新建文件")
 
-        for template in FileTemplate.allCases {
-            let item = NSMenuItem(
-                title: template.menuTitle,
-                action: selector(for: template),
-                keyEquivalent: ""
-            )
-            item.target = self
-            submenu.addItem(item)
+        let groups: [(title: String, templates: [FileTemplate])] = [
+            ("文本文档", [.plainText, .richText, .markdown]),
+            ("办公文档", [.word, .pdf, .powerpoint, .excel]),
+            ("数据文件", [.csv, .json]),
+            ("编程开发", [.html, .css, .javascript, .python, .swift, .shell])
+        ]
+
+        for (groupIndex, group) in groups.enumerated() {
+            if groupIndex > 0 {
+                submenu.addItem(.separator())
+            }
+
+            submenu.addItem(groupHeaderItem(title: group.title))
+
+            for template in group.templates {
+                submenu.addItem(menuItem(for: template))
+            }
         }
 
         let parent = NSMenuItem(title: "新建文件", action: nil, keyEquivalent: "")
@@ -52,6 +61,7 @@ final class FinderSync: FIFinderSync {
     @objc private func createCSV() { create(.csv) }
     @objc private func createJSON() { create(.json) }
     @objc private func createHTML() { create(.html) }
+    @objc private func createCSS() { create(.css) }
     @objc private func createWord() { create(.word) }
     @objc private func createPDF() { create(.pdf) }
     @objc private func createPowerPoint() { create(.powerpoint) }
@@ -81,6 +91,7 @@ final class FinderSync: FIFinderSync {
         case .csv: return #selector(createCSV)
         case .json: return #selector(createJSON)
         case .html: return #selector(createHTML)
+        case .css: return #selector(createCSS)
         case .word: return #selector(createWord)
         case .pdf: return #selector(createPDF)
         case .powerpoint: return #selector(createPowerPoint)
@@ -90,6 +101,29 @@ final class FinderSync: FIFinderSync {
         case .swift: return #selector(createSwift)
         case .shell: return #selector(createShell)
         }
+    }
+
+    private func groupHeaderItem(title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
+    }
+
+    private func menuItem(for template: FileTemplate) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: template.menuTitle,
+            action: selector(for: template),
+            keyEquivalent: ""
+        )
+        item.target = self
+        item.image = icon(for: template)
+        return item
+    }
+
+    private func icon(for template: FileTemplate) -> NSImage {
+        let image = NSWorkspace.shared.icon(forFileType: template.fileExtension)
+        image.size = NSSize(width: 16, height: 16)
+        return image
     }
 
     private func openMainAppCreateURL(template: FileTemplate, directoryURL: URL) {
