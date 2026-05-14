@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION:-1.0.0}"
 ARCH="$(uname -m)"
 APP_NAME="NewFileApp"
-DISPLAY_NAME="访达右键新建文件"
+DISPLAY_NAME="访达右键新建文件app"
 DIST_DIR="$ROOT_DIR/dist"
 RELEASE_DIR="$ROOT_DIR/build/release/$APP_NAME-$VERSION-mac-$ARCH"
 ZIP_PATH="$DIST_DIR/$APP_NAME-$VERSION-mac-$ARCH.zip"
@@ -26,12 +26,11 @@ $DISPLAY_NAME
 1. 把 NewFileApp.app 拖到 Applications 文件夹。
 2. 打开 Applications 里的 NewFileApp.app。
 3. 点击“一键安装/修复”。
-4. 如果系统设置打开了扩展页面，请启用“新建文件”。
-5. 在访达文件夹空白处右键，选择“新建文件”。
+4. 在访达文件夹空白处右键，选择“新建文件”。
 
 注意：
-- macOS 不允许第三方 App 静默启用 Finder 扩展，所以系统设置里的启用动作可能需要手动点一次。
-- 如果系统提示无法验证开发者，请在“系统设置 > 隐私与安全性”里允许打开，或使用已签名公证的 release。
+- 如果系统设置打开了扩展页面，请启用“新建文件”。
+- 如果系统提示无法验证开发者，请在“系统设置 > 隐私与安全性”里允许打开。
 TEXT
 
 (
