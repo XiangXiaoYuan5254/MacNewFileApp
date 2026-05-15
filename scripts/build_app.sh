@@ -12,7 +12,10 @@ SIGN_IDENTITY="${SIGN_IDENTITY:--}"
 rm -rf "$BUILD_DIR" "$APP_DIR"
 mkdir -p "$BUILD_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/PlugIns"
+mkdir -p "$APP_DIR/Contents/Resources"
 mkdir -p "$EXT_DIR/Contents/MacOS"
+
+cp "$ROOT_DIR/NewFileApp/Assets/AppIcon.icns" "$APP_DIR/Contents/Resources/AppIcon.icns"
 
 swiftc \
   -target arm64-apple-macosx13.0 \
@@ -48,6 +51,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<'PLIST'
 	<string>com.local.NewFileApp</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleName</key>
 	<string>NewFileApp</string>
 	<key>CFBundleDisplayName</key>
