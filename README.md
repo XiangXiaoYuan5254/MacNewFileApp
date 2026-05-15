@@ -5,7 +5,7 @@
 ## 功能
 
 - Finder 右键菜单中显示 **新建文件** 父项
-- 支持 `txt`、`md`、`rtf`、`csv`、`json`、`html`、`docx`、`pdf`、`pptx`、`xlsx`、`js`、`py`、`swift`、`sh`
+- 支持 `txt`、`md`、`rtf`、`csv`、`json`、`html`、`css`、`docx`、`pdf`、`pptx`、`xlsx`、`js`、`py`、`swift`、`sh`
 - Word、PDF、PowerPoint、Excel 使用可识别的空白模板，不是简单改后缀
 - 自动处理重名文件，例如 `新建文本文档 2.txt`
 - 创建后自动在 Finder 中选中新文件
