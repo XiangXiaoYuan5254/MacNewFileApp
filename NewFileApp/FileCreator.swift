@@ -263,17 +263,35 @@ enum NewFileCreator {
 
         guard
             url.scheme == "newfileapp",
-            url.host == "create",
             let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-            let type = components.queryItems?.first(where: { $0.name == "type" })?.value,
-            let path = components.queryItems?.first(where: { $0.name == "path" })?.value,
-            let kind = NewFileKind(rawValue: type)
+            let host = url.host
         else {
             showAlert("新建文件请求无效。")
             return
         }
 
-        create(kind, in: URL(fileURLWithPath: path, isDirectory: true))
+        switch host {
+        case "create":
+            guard
+                let type = components.queryItems?.first(where: { $0.name == "type" })?.value,
+                let path = components.queryItems?.first(where: { $0.name == "path" })?.value,
+                let kind = NewFileKind(rawValue: type)
+            else {
+                showAlert("新建文件请求无效。")
+                return
+            }
+
+            create(kind, in: URL(fileURLWithPath: path, isDirectory: true))
+        case "terminal":
+            guard let path = components.queryItems?.first(where: { $0.name == "path" })?.value else {
+                showAlert("打开终端请求无效。")
+                return
+            }
+
+            openTerminal(in: URL(fileURLWithPath: path, isDirectory: true))
+        default:
+            showAlert("请求无效：\(host)")
+        }
     }
 
     static func create(_ kind: NewFileKind, in directoryURL: URL) {
@@ -292,6 +310,35 @@ enum NewFileCreator {
         } catch {
             writeLog("failed \(error.localizedDescription)")
             showAlert("创建文件失败：\(error.localizedDescription)\n\n目录：\(directoryURL.path)")
+        }
+    }
+
+    static func openTerminal(in directoryURL: URL) {
+        writeLog("open terminal in \(directoryURL.path)")
+
+        do {
+            let commandURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("NewFileApp-\(UUID().uuidString)")
+                .appendingPathExtension("command")
+            let script = """
+            #!/bin/zsh
+            cd \(shellSingleQuoted(directoryURL.path)) || exit 1
+            rm -- "$0"
+            exec /bin/zsh -l
+            """
+
+            try Data(script.utf8).write(to: commandURL, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: commandURL.path)
+
+            if NSWorkspace.shared.open(commandURL) {
+                writeLog("terminal command opened at \(directoryURL.path)")
+            } else {
+                writeLog("open terminal failed: NSWorkspace.open returned false")
+                showAlert("打开终端失败。\n\n目录：\(directoryURL.path)")
+            }
+        } catch {
+            writeLog("open terminal failed: \(error.localizedDescription)")
+            showAlert("打开终端失败。\n\n目录：\(directoryURL.path)")
         }
     }
 
@@ -315,6 +362,10 @@ enum NewFileCreator {
 
         return directoryURL.appendingPathComponent("\(kind.baseName) \(UUID().uuidString)")
             .appendingPathExtension(kind.fileExtension)
+    }
+
+    private static func shellSingleQuoted(_ value: String) -> String {
+        "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
 
     private static func showAlert(_ message: String) {

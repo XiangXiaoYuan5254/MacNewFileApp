@@ -51,6 +51,17 @@ final class FinderSync: FIFinderSync {
         parent.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
         parent.submenu = submenu
         menu.addItem(parent)
+        menu.addItem(.separator())
+        menu.addItem(actionItem(
+            title: "拷贝路径",
+            symbolName: "doc.on.clipboard",
+            action: #selector(copyPath)
+        ))
+        menu.addItem(actionItem(
+            title: "打开终端",
+            symbolName: "terminal",
+            action: #selector(openTerminal)
+        ))
 
         return menu
     }
@@ -70,6 +81,31 @@ final class FinderSync: FIFinderSync {
     @objc private func createPython() { create(.python) }
     @objc private func createSwift() { create(.swift) }
     @objc private func createShell() { create(.shell) }
+
+    @objc private func copyPath() {
+        let urls = pathTargetURLs()
+        let paths = urls.map { $0.path }
+
+        guard !paths.isEmpty else {
+            writeLog("copy path failed: no target paths")
+            return
+        }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(paths.joined(separator: "\n"), forType: .string)
+        writeLog("copied paths: \(paths)")
+    }
+
+    @objc private func openTerminal() {
+        guard let directoryURL = targetDirectoryURL() else {
+            writeLog("open terminal failed: no target directory")
+            return
+        }
+
+        writeLog("open terminal target directory: \(directoryURL.path)")
+        openMainAppTerminalURL(directoryURL: directoryURL)
+    }
 
     private func create(_ template: FileTemplate) {
         writeLog("create invoked for \(template.rawValue)")
@@ -120,6 +156,13 @@ final class FinderSync: FIFinderSync {
         return item
     }
 
+    private func actionItem(title: String, symbolName: String, action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        item.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: title)
+        return item
+    }
+
     private func icon(for template: FileTemplate) -> NSImage {
         let image = NSWorkspace.shared.icon(forFileType: template.fileExtension)
         image.size = NSSize(width: 16, height: 16)
@@ -127,13 +170,23 @@ final class FinderSync: FIFinderSync {
     }
 
     private func openMainAppCreateURL(template: FileTemplate, directoryURL: URL) {
-        var components = URLComponents()
-        components.scheme = "newfileapp"
-        components.host = "create"
-        components.queryItems = [
+        openMainAppURL(host: "create", queryItems: [
             URLQueryItem(name: "type", value: template.rawValue),
             URLQueryItem(name: "path", value: directoryURL.path)
-        ]
+        ])
+    }
+
+    private func openMainAppTerminalURL(directoryURL: URL) {
+        openMainAppURL(host: "terminal", queryItems: [
+            URLQueryItem(name: "path", value: directoryURL.path)
+        ])
+    }
+
+    private func openMainAppURL(host: String, queryItems: [URLQueryItem]) {
+        var components = URLComponents()
+        components.scheme = "newfileapp"
+        components.host = host
+        components.queryItems = queryItems
 
         guard let url = components.url else {
             writeLog("failed to build callback URL")
@@ -177,6 +230,24 @@ final class FinderSync: FIFinderSync {
         }
 
         return frontFinderWindowURL()
+    }
+
+    private func pathTargetURLs() -> [URL] {
+        let controller = FIFinderSyncController.default()
+
+        if let selectedURLs = controller.selectedItemURLs(), !selectedURLs.isEmpty {
+            return selectedURLs
+        }
+
+        if let targetedURL = controller.targetedURL() {
+            return [targetedURL]
+        }
+
+        if let windowURL = frontFinderWindowURL() {
+            return [windowURL]
+        }
+
+        return []
     }
 
     private func uniqueURL(for template: FileTemplate, in directoryURL: URL) -> URL {
