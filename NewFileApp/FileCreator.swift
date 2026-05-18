@@ -1,5 +1,4 @@
 import AppKit
-import ApplicationServices
 import Foundation
 
 enum NewFileKind: String {
@@ -119,15 +118,6 @@ enum NewFileKind: String {
 
     var isExecutable: Bool {
         self == .shell || self == .python
-    }
-
-    var renameDelay: TimeInterval {
-        switch self {
-        case .word, .pdf, .powerpoint, .excel:
-            return 1.35
-        default:
-            return 0.8
-        }
     }
 }
 
@@ -317,7 +307,6 @@ enum NewFileCreator {
             }
 
             NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
-            beginRenameInFinder(for: destinationURL, delay: kind.renameDelay)
         } catch {
             writeLog("failed \(error.localizedDescription)")
             showAlert("创建文件失败：\(error.localizedDescription)\n\n目录：\(directoryURL.path)")
@@ -377,38 +366,6 @@ enum NewFileCreator {
 
     private static func shellSingleQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
-    }
-
-    private static func beginRenameInFinder(for fileURL: URL, delay: TimeInterval) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay + 0.2) {
-            NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-
-            guard AXIsProcessTrusted() else {
-                writeLog("begin rename skipped: Accessibility permission is not granted")
-                return
-            }
-
-            guard let finderPID = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.finder").first?.processIdentifier else {
-                writeLog("begin rename failed: Finder pid not found")
-                return
-            }
-
-            let source = CGEventSource(stateID: .hidSystemState)
-            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: true)
-            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: false)
-
-            if keyDown == nil || keyUp == nil {
-                writeLog("begin rename failed: unable to create key events")
-            } else {
-                keyDown?.postToPid(finderPID)
-                keyUp?.postToPid(finderPID)
-                writeLog("begin rename requested for \(fileURL.path)")
-            }
-        }
     }
 
     private static func showAlert(_ message: String) {
