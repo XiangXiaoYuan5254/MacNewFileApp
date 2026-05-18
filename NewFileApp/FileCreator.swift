@@ -307,6 +307,7 @@ enum NewFileCreator {
             }
 
             NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+            beginRenameInFinder(for: destinationURL)
         } catch {
             writeLog("failed \(error.localizedDescription)")
             showAlert("创建文件失败：\(error.localizedDescription)\n\n目录：\(directoryURL.path)")
@@ -366,6 +367,22 @@ enum NewFileCreator {
 
     private static func shellSingleQuoted(_ value: String) -> String {
         "'\(value.replacingOccurrences(of: "'", with: "'\\''"))'"
+    }
+
+    private static func beginRenameInFinder(for fileURL: URL) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            let source = CGEventSource(stateID: .hidSystemState)
+            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: true)
+            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 36, keyDown: false)
+
+            if keyDown == nil || keyUp == nil {
+                writeLog("begin rename failed: unable to create key events")
+            } else {
+                keyDown?.post(tap: .cghidEventTap)
+                keyUp?.post(tap: .cghidEventTap)
+                writeLog("begin rename requested for \(fileURL.path)")
+            }
+        }
     }
 
     private static func showAlert(_ message: String) {

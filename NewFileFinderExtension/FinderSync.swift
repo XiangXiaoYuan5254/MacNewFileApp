@@ -51,7 +51,6 @@ final class FinderSync: FIFinderSync {
         parent.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
         parent.submenu = submenu
         menu.addItem(parent)
-        menu.addItem(.separator())
         menu.addItem(actionItem(
             title: "拷贝路径",
             symbolName: "doc.on.clipboard",
