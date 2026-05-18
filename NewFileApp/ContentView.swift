@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ApplicationServices
 
 struct ContentView: View {
     var body: some View {
@@ -64,11 +65,16 @@ struct ContentView: View {
         let registered = registerExtension(showResult: false)
         let enabled = enableExtension()
         registerURLScheme()
+        let accessibilityReady = requestAccessibilityPermissionIfNeeded()
         relaunchFinder()
 
         if registered && enabled {
-            showAlert("安装成功！\n\n现在可以在 Finder 文件夹空白处右键，选择“新建文件”。")
-            closeInstallerWindow()
+            if accessibilityReady {
+                showAlert("安装成功！\n\n现在可以在 Finder 文件夹空白处右键，选择“新建文件”。")
+                closeInstallerWindow()
+            } else {
+                showAlert("安装成功！\n\n现在可以在 Finder 文件夹空白处右键，选择“新建文件”。\n\n如果系统打开了“隐私与安全性 > 辅助功能”，请启用 NewFileApp。启用后，新建文件会自动进入重命名。")
+            }
         } else {
             openExtensionsSettings()
             showAlert("已尝试安装/修复，但系统可能拦截了扩展启用。\n\n请在系统设置的扩展/访达扩展里手动启用“新建文件”。")
@@ -123,6 +129,16 @@ struct ContentView: View {
 
     private func relaunchFinder() {
         _ = run("/usr/bin/killall", arguments: ["Finder"])
+    }
+
+    private func requestAccessibilityPermissionIfNeeded() -> Bool {
+        if AXIsProcessTrusted() {
+            return true
+        }
+
+        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let options = [promptKey: true] as CFDictionary
+        return AXIsProcessTrustedWithOptions(options)
     }
 
     private func closeInstallerWindow() {
