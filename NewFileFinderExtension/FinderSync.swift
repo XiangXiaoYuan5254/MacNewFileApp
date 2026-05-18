@@ -4,6 +4,14 @@ import FinderSync
 @objc(FinderSync)
 final class FinderSync: FIFinderSync {
     private let fileManager = FileManager.default
+    private static let fileGroups: [(title: String, templates: [FileTemplate])] = [
+        ("文本文档", [.plainText, .richText, .markdown]),
+        ("办公文档", [.word, .pdf, .powerpoint, .excel]),
+        ("数据文件", [.csv, .json]),
+        ("编程开发", [.html, .css, .javascript, .python, .swift, .shell])
+    ]
+    private static var fileIconCache: [FileTemplate: NSImage] = [:]
+    private static var symbolIconCache: [String: NSImage] = [:]
 
     override init() {
         super.init()
@@ -21,21 +29,14 @@ final class FinderSync: FIFinderSync {
     }
 
     override var toolbarItemImage: NSImage {
-        NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: "新建文件") ?? NSImage()
+        Self.symbolIcon(named: "doc.badge.plus", accessibilityDescription: "新建文件")
     }
 
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
         let menu = NSMenu(title: "新建文件")
         let submenu = NSMenu(title: "新建文件")
 
-        let groups: [(title: String, templates: [FileTemplate])] = [
-            ("文本文档", [.plainText, .richText, .markdown]),
-            ("办公文档", [.word, .pdf, .powerpoint, .excel]),
-            ("数据文件", [.csv, .json]),
-            ("编程开发", [.html, .css, .javascript, .python, .swift, .shell])
-        ]
-
-        for (groupIndex, group) in groups.enumerated() {
+        for (groupIndex, group) in Self.fileGroups.enumerated() {
             if groupIndex > 0 {
                 submenu.addItem(.separator())
             }
@@ -48,7 +49,7 @@ final class FinderSync: FIFinderSync {
         }
 
         let parent = NSMenuItem(title: "新建文件", action: nil, keyEquivalent: "")
-        parent.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
+        parent.image = Self.symbolIcon(named: "doc.badge.plus", accessibilityDescription: nil)
         parent.submenu = submenu
         menu.addItem(parent)
         menu.addItem(actionItem(
@@ -158,13 +159,29 @@ final class FinderSync: FIFinderSync {
     private func actionItem(title: String, symbolName: String, action: Selector) -> NSMenuItem {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
-        item.image = NSImage(systemSymbolName: symbolName, accessibilityDescription: title)
+        item.image = Self.symbolIcon(named: symbolName, accessibilityDescription: title)
         return item
     }
 
     private func icon(for template: FileTemplate) -> NSImage {
+        if let cached = Self.fileIconCache[template] {
+            return cached
+        }
+
         let image = NSWorkspace.shared.icon(forFileType: template.fileExtension)
         image.size = NSSize(width: 16, height: 16)
+        Self.fileIconCache[template] = image
+        return image
+    }
+
+    private static func symbolIcon(named name: String, accessibilityDescription: String?) -> NSImage {
+        if let cached = symbolIconCache[name] {
+            return cached
+        }
+
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: accessibilityDescription) ?? NSImage()
+        image.size = NSSize(width: 16, height: 16)
+        symbolIconCache[name] = image
         return image
     }
 
