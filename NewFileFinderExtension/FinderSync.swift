@@ -4,6 +4,7 @@ import FinderSync
 @objc(FinderSync)
 final class FinderSync: FIFinderSync {
     private let fileManager = FileManager.default
+    private static let cutPathsPasteboardType = NSPasteboard.PasteboardType("com.local.NewFileApp.cutPaths")
     private static let fileGroups: [(title: String, templates: [FileTemplate])] = [
         ("文本文档", [.plainText, .richText, .markdown]),
         ("办公文档", [.word, .pdf, .powerpoint, .excel]),
@@ -35,6 +36,7 @@ final class FinderSync: FIFinderSync {
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
         let menu = NSMenu(title: "新建文件")
         let submenu = NSMenu(title: "新建文件")
+        let hasSelection = !selectedItemURLs().isEmpty
 
         for (groupIndex, group) in Self.fileGroups.enumerated() {
             if groupIndex > 0 {
@@ -48,13 +50,40 @@ final class FinderSync: FIFinderSync {
             }
         }
 
+        menu.addItem(actionItem(
+            title: "新建空白文件夹",
+            symbolName: "folder.badge.plus",
+            action: #selector(createFolder)
+        ))
+
         let parent = NSMenuItem(title: "新建文件", action: nil, keyEquivalent: "")
         parent.image = Self.symbolIcon(named: "doc.badge.plus", accessibilityDescription: nil)
         parent.submenu = submenu
         menu.addItem(parent)
+        let cutItem = actionItem(
+            title: "剪切",
+            symbolName: "scissors",
+            action: #selector(cutItems)
+        )
+        cutItem.isEnabled = hasSelection
+        menu.addItem(cutItem)
+        let pasteItem = actionItem(
+            title: "粘贴到此处",
+            symbolName: "doc.on.clipboard",
+            action: #selector(pasteCutItems)
+        )
+        pasteItem.isEnabled = NSPasteboard.general.string(forType: Self.cutPathsPasteboardType) != nil
+        menu.addItem(pasteItem)
+        let trashItem = actionItem(
+            title: "移到废纸篓",
+            symbolName: "trash",
+            action: #selector(trashItems)
+        )
+        trashItem.isEnabled = hasSelection
+        menu.addItem(trashItem)
         menu.addItem(actionItem(
             title: "拷贝路径",
-            symbolName: "doc.on.clipboard",
+            symbolName: "link",
             action: #selector(copyPath)
         ))
         menu.addItem(actionItem(
@@ -81,6 +110,54 @@ final class FinderSync: FIFinderSync {
     @objc private func createPython() { create(.python) }
     @objc private func createSwift() { create(.swift) }
     @objc private func createShell() { create(.shell) }
+
+    @objc private func createFolder() {
+        guard let directoryURL = targetDirectoryURL() else {
+            writeLog("create folder failed: no target directory")
+            return
+        }
+
+        writeLog("create folder target directory: \(directoryURL.path)")
+        openMainAppFolderURL(directoryURL: directoryURL)
+    }
+
+    @objc private func cutItems() {
+        let urls = selectedItemURLs()
+        let paths = urls.map { $0.path }
+
+        guard !paths.isEmpty else {
+            writeLog("cut failed: no selected paths")
+            return
+        }
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(paths.joined(separator: "\n"), forType: Self.cutPathsPasteboardType)
+        pasteboard.setString(paths.joined(separator: "\n"), forType: .string)
+        writeLog("cut paths: \(paths)")
+    }
+
+    @objc private func pasteCutItems() {
+        guard let directoryURL = targetDirectoryURL() else {
+            writeLog("paste cut failed: no target directory")
+            return
+        }
+
+        writeLog("paste cut target directory: \(directoryURL.path)")
+        openMainAppPasteCutURL(directoryURL: directoryURL)
+    }
+
+    @objc private func trashItems() {
+        let urls = selectedItemURLs()
+
+        guard !urls.isEmpty else {
+            writeLog("trash failed: no selected paths")
+            return
+        }
+
+        writeLog("trash paths: \(urls.map { $0.path })")
+        openMainAppTrashURL(itemURLs: urls)
+    }
 
     @objc private func copyPath() {
         let urls = pathTargetURLs()
@@ -198,6 +275,24 @@ final class FinderSync: FIFinderSync {
         ])
     }
 
+    private func openMainAppFolderURL(directoryURL: URL) {
+        openMainAppURL(host: "folder", queryItems: [
+            URLQueryItem(name: "path", value: directoryURL.path)
+        ])
+    }
+
+    private func openMainAppPasteCutURL(directoryURL: URL) {
+        openMainAppURL(host: "pasteCut", queryItems: [
+            URLQueryItem(name: "path", value: directoryURL.path)
+        ])
+    }
+
+    private func openMainAppTrashURL(itemURLs: [URL]) {
+        openMainAppURL(host: "trash", queryItems: itemURLs.map {
+            URLQueryItem(name: "path", value: $0.path)
+        })
+    }
+
     private func openMainAppURL(host: String, queryItems: [URLQueryItem]) {
         var components = URLComponents()
         components.scheme = "newfileapp"
@@ -246,6 +341,16 @@ final class FinderSync: FIFinderSync {
         }
 
         return frontFinderWindowURL()
+    }
+
+    private func selectedItemURLs() -> [URL] {
+        let controller = FIFinderSyncController.default()
+
+        if let selectedURLs = controller.selectedItemURLs(), !selectedURLs.isEmpty {
+            return selectedURLs
+        }
+
+        return []
     }
 
     private func pathTargetURLs() -> [URL] {

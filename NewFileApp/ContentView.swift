@@ -27,6 +27,9 @@ struct ContentView: View {
                     .font(.callout.monospaced())
                     .textSelection(.enabled)
                     .foregroundStyle(.secondary)
+                Text("支持新建空白文件夹、剪切/粘贴、拷贝路径、打开终端、移到废纸篓")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 10) {

@@ -1,6 +1,8 @@
 import AppKit
 import Foundation
 
+private let cutPathsPasteboardType = NSPasteboard.PasteboardType("com.local.NewFileApp.cutPaths")
+
 enum NewFileKind: String {
     case plainText
     case markdown
@@ -282,6 +284,31 @@ enum NewFileCreator {
             }
 
             create(kind, in: URL(fileURLWithPath: path, isDirectory: true))
+        case "folder":
+            guard let path = components.queryItems?.first(where: { $0.name == "path" })?.value else {
+                showAlert("新建文件夹请求无效。")
+                return
+            }
+
+            createFolder(in: URL(fileURLWithPath: path, isDirectory: true))
+        case "pasteCut":
+            guard let path = components.queryItems?.first(where: { $0.name == "path" })?.value else {
+                showAlert("粘贴请求无效。")
+                return
+            }
+
+            pasteCutItems(to: URL(fileURLWithPath: path, isDirectory: true))
+        case "trash":
+            let paths = components.queryItems?
+                .filter { $0.name == "path" }
+                .compactMap(\.value) ?? []
+
+            guard !paths.isEmpty else {
+                showAlert("移到废纸篓请求无效。")
+                return
+            }
+
+            trashItems(paths.map { URL(fileURLWithPath: $0) })
         case "terminal":
             guard let path = components.queryItems?.first(where: { $0.name == "path" })?.value else {
                 showAlert("打开终端请求无效。")
@@ -291,6 +318,20 @@ enum NewFileCreator {
             openTerminal(in: URL(fileURLWithPath: path, isDirectory: true))
         default:
             showAlert("请求无效：\(host)")
+        }
+    }
+
+    static func createFolder(in directoryURL: URL) {
+        writeLog("create folder in \(directoryURL.path)")
+
+        do {
+            let destinationURL = uniqueFolderURL(in: directoryURL)
+            try FileManager.default.createDirectory(at: destinationURL, withIntermediateDirectories: false)
+            writeLog("created folder \(destinationURL.path)")
+            NSWorkspace.shared.activateFileViewerSelecting([destinationURL])
+        } catch {
+            writeLog("create folder failed \(error.localizedDescription)")
+            showAlert("创建文件夹失败：\(error.localizedDescription)\n\n目录：\(directoryURL.path)")
         }
     }
 
@@ -310,6 +351,84 @@ enum NewFileCreator {
         } catch {
             writeLog("failed \(error.localizedDescription)")
             showAlert("创建文件失败：\(error.localizedDescription)\n\n目录：\(directoryURL.path)")
+        }
+    }
+
+    static func pasteCutItems(to directoryURL: URL) {
+        writeLog("paste cut to \(directoryURL.path)")
+
+        let pasteboard = NSPasteboard.general
+        guard let value = pasteboard.string(forType: cutPathsPasteboardType) else {
+            writeLog("paste cut failed: no cut paths")
+            showAlert("没有可粘贴的剪切项目。")
+            return
+        }
+
+        let sourceURLs = value
+            .split(separator: "\n")
+            .map { URL(fileURLWithPath: String($0)) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+
+        guard !sourceURLs.isEmpty else {
+            pasteboard.clearContents()
+            showAlert("剪切项目不存在，无法粘贴。")
+            return
+        }
+
+        var movedURLs: [URL] = []
+        var failures: [String] = []
+
+        for sourceURL in sourceURLs {
+            do {
+                if sourceURL.deletingLastPathComponent().standardizedFileURL == directoryURL.standardizedFileURL {
+                    movedURLs.append(sourceURL)
+                    continue
+                }
+
+                if isDirectory(sourceURL),
+                   directoryURL.standardizedFileURL.path.hasPrefix(sourceURL.standardizedFileURL.path + "/") {
+                    failures.append("\(sourceURL.lastPathComponent)：不能移动到自身内部")
+                    continue
+                }
+
+                let destinationURL = uniqueURL(forMoving: sourceURL, in: directoryURL)
+                try FileManager.default.moveItem(at: sourceURL, to: destinationURL)
+                movedURLs.append(destinationURL)
+                writeLog("moved \(sourceURL.path) to \(destinationURL.path)")
+            } catch {
+                failures.append("\(sourceURL.lastPathComponent)：\(error.localizedDescription)")
+                writeLog("move failed \(sourceURL.path): \(error.localizedDescription)")
+            }
+        }
+
+        if !movedURLs.isEmpty {
+            pasteboard.clearContents()
+            NSWorkspace.shared.activateFileViewerSelecting(movedURLs)
+        }
+
+        if !failures.isEmpty {
+            showAlert("部分项目移动失败：\n\n\(failures.joined(separator: "\n"))")
+        }
+    }
+
+    static func trashItems(_ itemURLs: [URL]) {
+        writeLog("trash \(itemURLs.map { $0.path })")
+
+        var failures: [String] = []
+
+        for itemURL in itemURLs {
+            do {
+                var resultingURL: NSURL?
+                try FileManager.default.trashItem(at: itemURL, resultingItemURL: &resultingURL)
+                writeLog("trashed \(itemURL.path)")
+            } catch {
+                failures.append("\(itemURL.lastPathComponent)：\(error.localizedDescription)")
+                writeLog("trash failed \(itemURL.path): \(error.localizedDescription)")
+            }
+        }
+
+        if !failures.isEmpty {
+            showAlert("部分项目移到废纸篓失败：\n\n\(failures.joined(separator: "\n"))")
         }
     }
 
@@ -342,26 +461,55 @@ enum NewFileCreator {
         }
     }
 
+    private static func uniqueFolderURL(in directoryURL: URL) -> URL {
+        uniqueURL(baseName: "新建文件夹", fileExtension: nil, in: directoryURL)
+    }
+
     private static func uniqueURL(for kind: NewFileKind, in directoryURL: URL) -> URL {
+        uniqueURL(baseName: kind.baseName, fileExtension: kind.fileExtension, in: directoryURL)
+    }
+
+    private static func uniqueURL(forMoving sourceURL: URL, in directoryURL: URL) -> URL {
+        let baseName = sourceURL.deletingPathExtension().lastPathComponent
+        let fileExtension = sourceURL.pathExtension.isEmpty ? nil : sourceURL.pathExtension
+        return uniqueURL(baseName: baseName, fileExtension: fileExtension, in: directoryURL)
+    }
+
+    private static func uniqueURL(baseName: String, fileExtension: String?, in directoryURL: URL) -> URL {
         let fileManager = FileManager.default
-        let preferredURL = directoryURL.appendingPathComponent(kind.baseName)
-            .appendingPathExtension(kind.fileExtension)
+        var preferredURL = directoryURL.appendingPathComponent(baseName)
+
+        if let fileExtension {
+            preferredURL = preferredURL.appendingPathExtension(fileExtension)
+        }
 
         guard fileManager.fileExists(atPath: preferredURL.path) else {
             return preferredURL
         }
 
         for index in 2...999 {
-            let url = directoryURL.appendingPathComponent("\(kind.baseName) \(index)")
-                .appendingPathExtension(kind.fileExtension)
+            var url = directoryURL.appendingPathComponent("\(baseName) \(index)")
+
+            if let fileExtension {
+                url = url.appendingPathExtension(fileExtension)
+            }
 
             if !fileManager.fileExists(atPath: url.path) {
                 return url
             }
         }
 
-        return directoryURL.appendingPathComponent("\(kind.baseName) \(UUID().uuidString)")
-            .appendingPathExtension(kind.fileExtension)
+        var fallbackURL = directoryURL.appendingPathComponent("\(baseName) \(UUID().uuidString)")
+
+        if let fileExtension {
+            fallbackURL = fallbackURL.appendingPathExtension(fileExtension)
+        }
+
+        return fallbackURL
+    }
+
+    private static func isDirectory(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
     }
 
     private static func shellSingleQuoted(_ value: String) -> String {
