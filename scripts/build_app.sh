@@ -25,6 +25,7 @@ swiftc \
   "$ROOT_DIR/NewFileApp/AppDelegate.swift" \
   "$ROOT_DIR/NewFileApp/ContentView.swift" \
   "$ROOT_DIR/NewFileApp/FileCreator.swift" \
+  "$ROOT_DIR/Shared/UpdateChecker.swift" \
   -o "$APP_DIR/Contents/MacOS/NewFileApp"
 
 swiftc \
@@ -34,6 +35,7 @@ swiftc \
   -emit-executable \
   "$ROOT_DIR/NewFileFinderExtension/FileTemplate.swift" \
   "$ROOT_DIR/NewFileFinderExtension/FinderSync.swift" \
+  "$ROOT_DIR/Shared/UpdateChecker.swift" \
   -Xlinker -e \
   -Xlinker _NSExtensionMain \
   -o "$EXT_DIR/Contents/MacOS/NewFileFinderExtension"

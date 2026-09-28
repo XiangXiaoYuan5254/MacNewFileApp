@@ -19,6 +19,7 @@ final class FinderSync: FIFinderSync {
         FIFinderSyncController.default().directoryURLs = [
             URL(fileURLWithPath: "/", isDirectory: true)
         ]
+        UpdateChecker.shared.checkIfNeeded()
     }
 
     override var toolbarItemName: String {
@@ -91,6 +92,15 @@ final class FinderSync: FIFinderSync {
             symbolName: "terminal",
             action: #selector(openTerminal)
         ))
+
+        UpdateChecker.shared.checkIfNeeded()
+        if let update = UpdateChecker.shared.availableUpdate {
+            menu.addItem(actionItem(
+                title: "有新版本 v\(update.version) 可用",
+                symbolName: "arrow.down.circle",
+                action: #selector(openUpdatePage)
+            ))
+        }
 
         return menu
     }
@@ -182,6 +192,15 @@ final class FinderSync: FIFinderSync {
 
         writeLog("open terminal target directory: \(directoryURL.path)")
         openMainAppTerminalURL(directoryURL: directoryURL)
+    }
+
+    @objc private func openUpdatePage() {
+        guard let update = UpdateChecker.shared.availableUpdate else {
+            return
+        }
+
+        writeLog("open update page: \(update.pageURL.absoluteString)")
+        NSWorkspace.shared.open(update.pageURL)
     }
 
     private func create(_ template: FileTemplate) {

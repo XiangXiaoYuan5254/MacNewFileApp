@@ -2,6 +2,16 @@ import SwiftUI
 import AppKit
 
 struct ContentView: View {
+    private enum UpdateStatus {
+        case idle
+        case checking
+        case upToDate
+        case available(AppRelease)
+        case failed
+    }
+
+    @State private var updateStatus: UpdateStatus = .idle
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
@@ -58,9 +68,92 @@ struct ContentView: View {
                     Label("重启访达", systemImage: "arrow.clockwise")
                 }
             }
+
+            Divider()
+
+            HStack(spacing: 10) {
+                Text("当前版本 v\(UpdateChecker.shared.currentVersion)")
+                    .foregroundStyle(.secondary)
+
+                updateStatusText
+
+                Spacer()
+
+                if let release = knownUpdate {
+                    Button("下载新版本") {
+                        NSWorkspace.shared.open(release.pageURL)
+                    }
+                }
+
+                Button("检查更新") {
+                    checkForUpdates()
+                }
+                .disabled(isCheckingForUpdates)
+            }
+            .font(.callout)
         }
         .padding(24)
         .frame(width: 600)
+        .onAppear {
+            if let release = UpdateChecker.shared.availableUpdate {
+                updateStatus = .available(release)
+            }
+            checkForUpdates()
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatusText: some View {
+        switch updateStatus {
+        case .idle:
+            EmptyView()
+        case .checking:
+            Text("正在检查…")
+                .foregroundStyle(.secondary)
+        case .upToDate:
+            Text("已是最新版本")
+                .foregroundStyle(.secondary)
+        case .available(let release):
+            Text("发现新版本 v\(release.version)")
+                .foregroundStyle(Color.accentColor)
+        case .failed:
+            Text("检查失败，请稍后再试")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var isCheckingForUpdates: Bool {
+        if case .checking = updateStatus {
+            return true
+        }
+        return false
+    }
+
+    private var knownUpdate: AppRelease? {
+        if case .available(let release) = updateStatus {
+            return release
+        }
+        return nil
+    }
+
+    private func checkForUpdates() {
+        // 已经知道有新版本时，后台刷新不要把提示换成“正在检查”
+        if knownUpdate == nil {
+            updateStatus = .checking
+        }
+
+        UpdateChecker.shared.check { result in
+            switch result {
+            case .success(let release?):
+                updateStatus = .available(release)
+            case .success(nil):
+                updateStatus = .upToDate
+            case .failure:
+                if knownUpdate == nil {
+                    updateStatus = .failed
+                }
+            }
+        }
     }
 
     private func installOrRepair() {
