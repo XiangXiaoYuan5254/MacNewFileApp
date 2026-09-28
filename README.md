@@ -19,7 +19,7 @@
 
 ## 用户安装
 
-推荐从 GitHub Releases 下载 `.dmg`：
+推荐从官网 <https://helloxxy.com/works/newfileapp/> 下载 `.dmg`（也可以在 GitHub Releases 下载）：
 
 1. 打开 `.dmg`
 2. 把 `NewFileApp.app` 拖到 `Applications`
@@ -79,13 +79,17 @@ dist/NewFileApp-1.0.0-mac-<arch>.dmg
 
 把 `.dmg` 上传到 GitHub Releases，普通用户下载后按“用户安装”步骤操作即可。
 
-Release 的 tag 要写成 `v<版本号>`，例如 `v1.0.14`，并且和打包时的 `VERSION` 一致。App 会读取最新一个正式 Release（不含草稿和预发布）的 tag 来判断是否有新版本。
+Release 的 tag 要写成 `v<版本号>`，例如 `v1.0.14`，并且和打包时的 `VERSION` 一致。1.0.14 及更早的版本通过 GitHub 最新一个正式 Release（不含草稿和预发布）的 tag 判断是否有新版本，所以每次发版仍要发布 GitHub Release。同时要更新官网上的安装包和 `latest.json`，新版本从那里检查更新。
 
 ## 检查更新
 
-App 通过 GitHub API 查询最新 Release，只读取版本号和 Release 页面地址，不上传任何数据：
+App 读取官网上的 <https://helloxxy.com/works/newfileapp/downloads/latest.json>，只读取其中的版本号，不上传任何数据：
 
-- Finder 扩展每天最多检查一次，失败后一小时再试；发现新版本时在右键菜单末尾显示 **有新版本 vX 可用**，点击打开 Release 页面
+```json
+{ "version": "1.0.15", "file": "NewFileApp-1.0.15-mac-arm64.dmg", "size": 2212982, "date": "2026-09-28" }
+```
+
+- Finder 扩展每天最多检查一次，失败后一小时再试；发现新版本时在右键菜单末尾显示 **有新版本 vX 可用**，点击打开官网下载
 - 每次打开主窗口时检查一次，也可以点 **检查更新** 手动检查
 
 检查逻辑在 `Shared/UpdateChecker.swift`，主 App 和 Finder 扩展共用。

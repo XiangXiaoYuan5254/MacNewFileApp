@@ -5,11 +5,13 @@ struct AppRelease {
     let pageURL: URL
 }
 
-/// 通过 GitHub Releases 检查新版本，主 App 和 Finder 扩展共用
+/// 通过官网上的 latest.json 检查新版本，主 App 和 Finder 扩展共用
 final class UpdateChecker {
     static let shared = UpdateChecker()
 
-    private static let latestReleaseURL = URL(string: "https://api.github.com/repos/XiangXiaoYuan5254/MacNewFileApp/releases/latest")!
+    // 官网上的版本信息，发布新版本时随官网一起更新
+    private static let latestReleaseURL = URL(string: "https://helloxxy.com/works/newfileapp/downloads/latest.json")!
+    private static let downloadPageURL = URL(string: "https://helloxxy.com/works/newfileapp/")!
     // 成功后一天再查；失败（比如刚唤醒还没联网）一小时后重试
     private static let checkInterval: TimeInterval = 24 * 60 * 60
     private static let retryInterval: TimeInterval = 60 * 60
@@ -46,8 +48,7 @@ final class UpdateChecker {
         // 先占住下次检查时间，避免连续右键时重复请求
         defaults.set(Date().addingTimeInterval(Self.retryInterval), forKey: Self.nextCheckDateKey)
 
-        var request = URLRequest(url: Self.latestReleaseURL, timeoutInterval: 15)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        let request = URLRequest(url: Self.latestReleaseURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 15)
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             let result = Result { try Self.parseRelease(data: data, response: response, error: error) }
@@ -70,14 +71,8 @@ final class UpdateChecker {
         version.compare(other, options: .numeric) == .orderedDescending
     }
 
-    private struct GitHubRelease: Decodable {
-        let tagName: String
-        let htmlURL: URL
-
-        enum CodingKeys: String, CodingKey {
-            case tagName = "tag_name"
-            case htmlURL = "html_url"
-        }
+    private struct LatestRelease: Decodable {
+        let version: String
     }
 
     private static func parseRelease(data: Data?, response: URLResponse?, error: Error?) throws -> AppRelease {
@@ -89,9 +84,7 @@ final class UpdateChecker {
             throw URLError(.badServerResponse)
         }
 
-        let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
-        // tag 形如 v1.0.13
-        let version = release.tagName.hasPrefix("v") ? String(release.tagName.dropFirst()) : release.tagName
-        return AppRelease(version: version, pageURL: release.htmlURL)
+        let release = try JSONDecoder().decode(LatestRelease.self, from: data)
+        return AppRelease(version: release.version, pageURL: downloadPageURL)
     }
 }
