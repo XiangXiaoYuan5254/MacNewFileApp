@@ -7,7 +7,16 @@ APP_DIR="$ROOT_DIR/dist/NewFileApp.app"
 EXT_DIR="$APP_DIR/Contents/PlugIns/NewFileFinderExtension.appex"
 VERSION="${VERSION:-1.0.0}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
-SIGN_IDENTITY="${SIGN_IDENTITY:--}"
+# 默认用 Developer ID 证书签名（发布版要交给 Apple 公证）；钥匙串里没有这张证书时退回 ad-hoc 签名，
+# 适合自己从源码构建、本地测试。
+DEVELOPER_ID="Developer ID Application: Li Ming wang (46AL7LQ9T8)"
+if [[ -z "${SIGN_IDENTITY:-}" ]]; then
+  if /usr/bin/security find-identity -v -p codesigning | /usr/bin/grep -qF "\"$DEVELOPER_ID\""; then
+    SIGN_IDENTITY="$DEVELOPER_ID"
+  else
+    SIGN_IDENTITY="-"
+  fi
+fi
 
 rm -rf "$BUILD_DIR" "$APP_DIR"
 mkdir -p "$BUILD_DIR"

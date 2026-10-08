@@ -30,17 +30,9 @@
 
 macOS 不允许第三方 App 完全静默启用 Finder 扩展，所以“系统设置里启用扩展”这一步可能需要手动点一次。
 
-## 无法打开时
+## 首次打开
 
-当前 Release 未经过 Apple 公证。首次打开时，macOS 可能提示“无法验证开发者”。
-
-可以这样打开：
-
-1. 在 Finder 中右键点击 `NewFileApp.app`
-2. 选择 **打开**
-3. 在弹窗中再次选择 **打开**
-
-也可以在 **系统设置 > 隐私与安全性** 中允许打开。
+Release 里的安装包使用 Apple Developer ID 签名，并已通过 Apple 公证，可以直接打开。第一次打开时 macOS 会确认一次“这是从互联网下载的 App”，点 **打开** 即可。
 
 ## 开发打包
 
@@ -96,10 +88,13 @@ App 读取官网上的 <https://helloxxy.com/works/newfileapp/downloads/latest.j
 
 ## 签名
 
-打包脚本默认使用 ad-hoc 签名，适合开源分发和本地测试。也可以通过 `SIGN_IDENTITY` 指定证书：
+打包脚本默认用钥匙串里的 Developer ID 证书签名并开启 hardened runtime，`package_release.sh` 再把 App 和 DMG 交给 Apple 公证、贴上票据（几分钟，期间别让 Mac 锁屏）。公证用登录钥匙串里名为 `helloxxy-notary` 的凭据（`xcrun notarytool store-credentials` 保存，`NOTARY_PROFILE` 可换成别的）。
+
+钥匙串里没有这张证书时自动改用 ad-hoc 签名、跳过公证，适合自己从源码构建和本地测试。也可以通过 `SIGN_IDENTITY` 指定证书，`NOTARIZE=0` 跳过公证：
 
 ```bash
 SIGN_IDENTITY="Developer ID Application: Name (TEAMID)" VERSION=1.0.0 scripts/package_release.sh
+SIGN_IDENTITY=- VERSION=1.0.0 scripts/package_release.sh
 ```
 
 ## 工作原理
