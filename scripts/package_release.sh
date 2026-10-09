@@ -26,6 +26,8 @@ notarize() {
     xcrun stapler staple -q "$2"
 }
 
+command -v uvx >/dev/null || { echo "生成 DMG 需要 uv，先运行 brew install uv。" >&2; exit 1; }
+
 "$ROOT_DIR/scripts/build_app.sh" >/dev/null
 
 APP_DIR="$DIST_DIR/$APP_NAME.app"
@@ -69,12 +71,16 @@ TEXT
     ditto -c -k --sequesterRsrc --keepParent "$RELEASE_DIR" "$ZIP_PATH"
 )
 
-hdiutil create \
-    -volname "$DISPLAY_NAME" \
-    -srcfolder "$RELEASE_DIR" \
-    -ov \
-    -format UDZO \
-    "$DMG_PATH" >/dev/null
+# 生成 DMG：和页间的安装包一样，打开后是一个带箭头的窗口，提示把 App 拖进「应用程序」（布局见 scripts/dmg/）。
+# dmgbuild 由 uv 临时运行；要用 1.6.7 或更新的版本，更早的版本会多写一个背景图书签，Finder 就不显示背景了。
+DMG_WORK_DIR="$ROOT_DIR/build/dmg"
+swift "$ROOT_DIR/scripts/dmg/background.swift" "$DMG_WORK_DIR"
+uvx --python 3.12 --from dmgbuild==1.6.7 dmgbuild -s "$ROOT_DIR/scripts/dmg/settings.py" \
+    -D app="$RELEASE_DIR/$APP_NAME.app" \
+    -D readme="$RELEASE_DIR/安装说明.txt" \
+    -D background="$DMG_WORK_DIR/background.png" \
+    -D icon="$RELEASE_DIR/$APP_NAME.app/Contents/Resources/AppIcon.icns" \
+    "$DISPLAY_NAME" "$DMG_PATH" >/dev/null
 
 if [[ "$SIGNED_BY" == "Developer ID Application:"* ]]; then
     /usr/bin/codesign --force --sign "$SIGNED_BY" --timestamp "$DMG_PATH"

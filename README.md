@@ -69,6 +69,8 @@ dist/NewFileApp-1.0.0-mac-<arch>.zip
 dist/NewFileApp-1.0.0-mac-<arch>.dmg
 ```
 
+DMG 打开后是一个带箭头的窗口，提示把 App 拖进「应用程序」，和页间的安装包一样（布局见 `scripts/dmg/`）；它用 [dmgbuild](https://github.com/dmgbuild/dmgbuild) 生成，需要先 `brew install uv`。
+
 把 `.dmg` 上传到 GitHub Releases，普通用户下载后按“用户安装”步骤操作即可。
 
 Release 的 tag 要写成 `v<版本号>`，例如 `v1.0.14`，并且和打包时的 `VERSION` 一致。1.0.14 及更早的版本通过 GitHub 最新一个正式 Release（不含草稿和预发布）的 tag 判断是否有新版本，所以每次发版仍要发布 GitHub Release。同时要更新官网上的安装包和 `latest.json`，新版本从那里检查更新。
