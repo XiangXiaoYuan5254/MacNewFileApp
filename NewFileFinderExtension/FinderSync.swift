@@ -13,13 +13,20 @@ final class FinderSync: FIFinderSync {
     ]
     private static var fileIconCache: [FileTemplate: NSImage] = [:]
     private static var symbolIconCache: [String: NSImage] = [:]
+    private var volumeObservers: [NSObjectProtocol] = []
 
     override init() {
         super.init()
-        FIFinderSyncController.default().directoryURLs = [
-            URL(fileURLWithPath: "/", isDirectory: true)
-        ]
+        refreshMonitoredDirectories()
+        observeVolumeChanges()
         UpdateChecker.shared.checkIfNeeded()
+    }
+
+    deinit {
+        let center = NSWorkspace.shared.notificationCenter
+        for observer in volumeObservers {
+            center.removeObserver(observer)
+        }
     }
 
     override var toolbarItemName: String {
@@ -411,8 +418,62 @@ final class FinderSync: FIFinderSync {
             .appendingPathExtension(template.fileExtension)
     }
 
+    private func observeVolumeChanges() {
+        let center = NSWorkspace.shared.notificationCenter
+        let refreshNotifications: [NSNotification.Name] = [
+            NSWorkspace.didMountNotification,
+            NSWorkspace.didUnmountNotification,
+            NSWorkspace.didRenameVolumeNotification
+        ]
+
+        for name in refreshNotifications {
+            let observer = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                self?.refreshMonitoredDirectories()
+            }
+            volumeObservers.append(observer)
+        }
+
+        let willUnmountObserver = center.addObserver(
+            forName: NSWorkspace.willUnmountNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let unmountingURL = notification.userInfo?[NSWorkspace.volumeURLUserInfoKey] as? URL
+            self?.refreshMonitoredDirectories(excluding: unmountingURL)
+        }
+        volumeObservers.append(willUnmountObserver)
+    }
+
+    private func refreshMonitoredDirectories(excluding excludedURL: URL? = nil) {
+        var directories: Set<URL> = [
+            URL(fileURLWithPath: "/", isDirectory: true).standardizedFileURL
+        ]
+
+        let volumeURLs = fileManager.mountedVolumeURLs(
+            includingResourceValuesForKeys: nil,
+            options: [.skipHiddenVolumes]
+        ) ?? []
+
+        let excludedPath = excludedURL?.standardizedFileURL.path
+
+        for volumeURL in volumeURLs {
+            let standardized = volumeURL.standardizedFileURL
+            if let excludedPath, standardized.path == excludedPath {
+                continue
+            }
+            directories.insert(standardized)
+        }
+
+        FIFinderSyncController.default().directoryURLs = directories
+        writeLog("monitored directories: \(directories.map(\.path).sorted())")
+    }
+
     private func isDirectory(_ url: URL) -> Bool {
-        (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+        if let isDirectory = try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory {
+            return isDirectory
+        }
+
+        return url.hasDirectoryPath
     }
 
     private func frontFinderWindowURL() -> URL? {
